@@ -7,13 +7,8 @@ require 'json'
 require 'pp'
 require 'active_record'
 
-# lets the user type the file name
-puts "Enter the name of a JSON file"
-file = gets
-json = IO.readlines(file)
-
 # testing this out on the sample data from Dropbox
-# json = IO.readlines('data.txt')
+json = IO.readlines('data.txt')
 
 # A function to test if the tweet text matches Terri's specs.
 def matches_specs(text)
