@@ -10,7 +10,7 @@ require 'active_record'
 
 
 # limit annoying text output in irb
-#conf.return_format = "=> limited output\n %.2048s\n"
+#conf.return_format = "=> %s\n"
 
 
 # create classes with ActiveRecord that connect to the database tables
@@ -41,11 +41,12 @@ def matches_specs(text)
   matches
 end
 
-# add a tweet to the database
-def add_to_database(t, i, duplicates)
+# add a tweet to the database. Return 1 if the entry already exists,
+# zero otherwise
+def add_to_database(t, i)
   created_at = DateTime.strptime(t['created_at'], '%a %b %d %H:%M:%S %z %Y')
   # get rid of annoying Asian characters
-  location = t['user']['location'].gsub(/[^\p{Latin}\/ \-,]/, '')
+  location = t['user']['location']#.gsub(/[^\p{Latin}\/ \-,]/, '')
 
   begin
     # if the object contains latitude and longitude
@@ -77,13 +78,12 @@ def add_to_database(t, i, duplicates)
     # if the new row doesn't get created in the database, print out
     # some helpful info so we can look to see what's going on
     if e.class.to_s == 'ActiveRecord::RecordNotUnique'
-      duplicates += 1
+      return 1
     else
       puts i.to_s
-      puts e.class.to_s
       puts $!
+      return 0
     end
-    return
   end
 
   # add URLs, if there are any. I set the urls table to hold 1024
@@ -93,6 +93,8 @@ def add_to_database(t, i, duplicates)
       status.urls.create(:url => url['expanded_url'][0..1023])
     end
   end
+
+  return 0
 end
   
 
@@ -101,33 +103,46 @@ end
 folders = Dir.entries("/network/rit/lab/projpet/Loni_Tweet")[2..-1]
 # put into chronological order (mostly)
 folders.sort!
+#folders = ["/home/will/ppet/project_petition"]
+
+# if I need to rerun the script, but only for some folders
+#folders = folders[63..-1]
 
 # cycle through all the folders
 folders.each_with_index do |folder, folder_num|
 
+  # the number of relevant tweets in the file
+  n_relevant = 0
+
   # I want to count the number of duplicate tweets
   duplicates = 0
+
+  # keep track of how many are unparseable
+  unparsed = 0
   
-  puts "Starting folder ##{(folder_num + 1).to_s} out of #{folders.length.to_s}:"
-  puts folder
+  puts "Starting folder #{folder} (#{(folder_num + 1).to_s} out of #{folders.length.to_s}) ..."
 
-  Dir.chdir "/network/rit/lab/projpet/Loni_Tweet" + "/" + folder
-  json = IO.readlines('data.txt')
+  Dir.chdir "/network/rit/lab/projpet/Loni_Tweet/" + folder
+  #Dir.chdir folder
 
-  # turn each line of JSON into a Ruby object and add it to the
-  # database if it matches our criteria
-  json.each_with_index do |line, i|
+  # find the text file (one folder has a csv file!)
+  text_file = ""
+  Dir.entries(".").each { |f| text_file = f if f[-3..-1] == "txt"}
+  
+  f = File.new(text_file)
+
+  # turn each line into a Ruby object and add it to the database if it
+  # matches our criteria
+  f.each_with_index do |line, i|
     relevant = false
     
     begin
       tweet = JSON.parse(line)
     rescue
-      # if it doesn't work print out the index of the offending line and
-      # skip to the next one
-      puts "Could not parse JSON:"
-      puts i
+      # if it doesn't work add it to the count and move along. There
+      # are lots of them.
+      unparsed += 1
       next
-      # not sure where that gobbledygook on line 44959 came from
     end
     
     # if there's a link in the tweet, see if it goes to WeThePeople
@@ -141,13 +156,33 @@ folders.each_with_index do |folder, folder_num|
       end
     end
 
+    # if for some reason there's no text, skip it
+    next if tweet['text'] == nil
+
     # check for the phrases
     relevant = true if matches_specs tweet["text"]
 
-    add_to_database(tweet, i, duplicates) if relevant
+    if relevant
+      # add_to_database will return 1 if it fails due to the entry
+      # already existing, otherwise zero
+      duplicates += add_to_database(tweet, i)
+      n_relevant += 1
+    end
+      
   end
 
-  puts "Number of duplicates: #{duplicates.to_s}"
+  # don't forget to close the file connection!!
+  f.close
+
+  if n_relevant != 0
+    percent = (duplicates.to_f * 100 / n_relevant).round.to_s
+  else
+    percent = "NA"
+  end
+
+  puts "Number of duplicates: #{duplicates.to_s} out of #{n_relevant.to_s} (#{percent}%)"
+
+  puts "Unparseable: #{unparsed.to_s}"
 
 end # end of the big folder loop
 
@@ -188,6 +223,6 @@ end # end of the big folder loop
 # mysql table setup
 # only need to add 'places' table if we're doing that
 
-#create table statuses (id CHAR(18) NOT NULL PRIMARY KEY, created_at DATETIME, text VARCHAR(240), longitude FLOAT, latitude FLOAT, favorite_count INT, retweet_count INT, user_id VARCHAR(18), user_followers_count INT, user_friends_count INT, user_location VARCHAR(30), user_screen_name VARCHAR(15));
+#create table statuses (id CHAR(18) NOT NULL PRIMARY KEY, created_at DATETIME, text VARCHAR(500), longitude FLOAT, latitude FLOAT, favorite_count INT, retweet_count INT, user_id VARCHAR(18), user_followers_count INT, user_friends_count INT, user_location VARCHAR(100), user_screen_name VARCHAR(30));
 
 #create table urls (id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, status_id CHAR(18) NOT NULL, url VARCHAR(1024), FOREIGN KEY (status_id) References statuses(id));
