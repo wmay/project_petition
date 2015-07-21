@@ -8,6 +8,7 @@ require 'json'
 require 'active_record'
 # also need 'mysql' gem installed for this to work
 
+
 # limit annoying text output in irb
 #conf.return_format = "=> %s\n"
 
@@ -56,8 +57,6 @@ def add_to_database(t, i)
                              :latitude => t['coordinates']['coordinates'][1],
                              :favorite_count => t['favorite_count'],
                              :retweet_count => t['retweet_count'],
-                             :retweeted => t['retweeted'],
-                             :retweeted_status => t['retweeted_status'],
                              :user_id => t['user']['id_str'],
                              :user_followers_count => t['user']['followers_count'],
                              :user_friends_count => t['user']['friends_count'],
@@ -69,8 +68,6 @@ def add_to_database(t, i)
                              :created_at => created_at,
                              :favorite_count => t['favorite_count'],
                              :retweet_count => t['retweet_count'],
-                             :retweeted => t['retweeted'],
-                             :retweeted_status => t['retweeted_status'],
                              :user_id => t['user']['id_str'],
                              :user_followers_count => t['user']['followers_count'],
                              :user_friends_count => t['user']['friends_count'],
