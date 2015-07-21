@@ -8,7 +8,6 @@ require 'json'
 require 'active_record'
 # also need 'mysql' gem installed for this to work
 
-
 # limit annoying text output in irb
 #conf.return_format = "=> %s\n"
 
@@ -49,8 +48,34 @@ def add_to_database(t, i)
   location = t['user']['location']#.gsub(/[^\p{Latin}\/ \-,]/, '')
 
   begin
-    # if the object contains latitude and longitude
-    if t['coordinates'] != nil
+    # if the object contains latitude and longitude and retweeted status
+    if t['coordinates'] != nil and t['retweeted_status'] != nil
+      status = Status.create(:id => t['id_str'], :text => t['text'],
+                             :created_at => created_at,
+                             :longitude => t['coordinates']['coordinates'][0],
+                             :latitude => t['coordinates']['coordinates'][1],
+                             :favorite_count => t['favorite_count'],
+                             :retweet_count => t['retweet_count'],
+                             :original_status_id => t['retweeted_status']['id_str'],
+                             :user_id => t['user']['id_str'],
+                             :user_followers_count => t['user']['followers_count'],
+                             :user_friends_count => t['user']['friends_count'],
+                             :user_location => location,
+                             :user_screen_name => t['user']['screen_name'])
+    elsif t['coordinates'] == nil and t['retweeted_status'] != nil
+      # else if no longitude and latitude but does have retweeted status
+      status = Status.create(:id => t['id_str'], :text => t['text'],
+                             :created_at => created_at,
+                             :favorite_count => t['favorite_count'],
+                             :retweet_count => t['retweet_count'],
+                             :original_status_id => t['retweeted_status']['id_str'],
+                             :user_id => t['user']['id_str'],
+                             :user_followers_count => t['user']['followers_count'],
+                             :user_friends_count => t['user']['friends_count'],
+                             :user_location => location,
+                             :user_screen_name => t['user']['screen_name'])
+    # else if the object contains latitude and longitude but not retweeted status
+    elsif t['coordinates'] != nil and t['retweeted_status'] == nil
       status = Status.create(:id => t['id_str'], :text => t['text'],
                              :created_at => created_at,
                              :longitude => t['coordinates']['coordinates'][0],
@@ -62,17 +87,17 @@ def add_to_database(t, i)
                              :user_friends_count => t['user']['friends_count'],
                              :user_location => location,
                              :user_screen_name => t['user']['screen_name'])
-    else
-      # otherwise no longitude and latitude this time
-      status = Status.create(:id => t['id_str'], :text => t['text'],
-                             :created_at => created_at,
-                             :favorite_count => t['favorite_count'],
-                             :retweet_count => t['retweet_count'],
-                             :user_id => t['user']['id_str'],
-                             :user_followers_count => t['user']['followers_count'],
-                             :user_friends_count => t['user']['friends_count'],
-                             :user_location => location,
-                             :user_screen_name => t['user']['screen_name'])
+    elsif t['coordinates'] == nil and t['retweeted_status'] == nil
+    # else if no longitude, no latitude, and no retweeted status
+    status = Status.create(:id => t['id_str'], :text => t['text'],
+                           :created_at => created_at,
+                           :favorite_count => t['favorite_count'],
+                           :retweet_count => t['retweet_count'],
+                           :user_id => t['user']['id_str'],
+                           :user_followers_count => t['user']['followers_count'],
+                           :user_friends_count => t['user']['friends_count'],
+                           :user_location => location,
+                           :user_screen_name => t['user']['screen_name'])
     end    
   rescue StandardError => e
     # if the new row doesn't get created in the database, print out
