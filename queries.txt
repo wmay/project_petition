@@ -1,0 +1,5 @@
+# To add a new column to database table
+ALTER TABLE {table_name} ADD COLUMN `{new_column_name}` {data_type} {NULL | NOT NULL} AFTER `{column_to_add_after}`;
+
+# Example
+ALTER TABLE statuses ADD COLUMN `original_status_id` CHAR(18) NULL AFTER `id`;
